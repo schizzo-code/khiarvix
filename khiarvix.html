@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KnowHow Empresarial Chat</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            background: white;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #chat-container {
+            flex: 1;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        #chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+        
+        #chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #chat-messages::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        #chat-messages::-webkit-scrollbar-thumb {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 3px;
+        }
+        
+        .message {
+            padding: 12px 16px;
+            border-radius: 24px;
+            max-width: 85%;
+            line-height: 1.5;
+            position: relative;
+            font-size: 15px;
+            word-wrap: break-word;
+        }
+        
+        .message.user {
+            background: #1976d2;
+            color: white;
+            align-self: flex-end;
+            border-radius: 24px 24px 8px 24px;
+        }
+        
+        .message.assistant {
+            background: white;
+            color: #333;
+            align-self: flex-start;
+            border-radius: 24px 24px 24px 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .message .expert-name {
+            font-weight: 600;
+            font-size: 13px;
+            color: #1976d2;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .message a {
+            color: #1976d2;
+            text-decoration: underline;
+            word-break: break-all;
+        }
+        
+        .message.user a {
+            color: #bbdefb;
+        }
+        
+        .message a:hover {
+            color: #0d47a1;
+            text-decoration: none;
+        }
+        
+        .message.user a:hover {
+            color: white;
+        }
+        
+        #user-input-container {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            gap: 8px;
+            margin-bottom: 20px;
+            flex-wrap: nowrap;
+        }
+        
+        #user-input {
+            flex-grow: 1;
+            padding: 16px 20px;
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            outline: none;
+            font-family: inherit;
+        }
+        
+        #user-input::placeholder {
+            color: #9e9e9e;
+        }
+        
+        #user-input:disabled {
+            color: #bdbdbd;
+            cursor: not-allowed;
+        }
+        
+        #send-button {
+            padding: 10px;
+            background: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        
+        #send-button:hover:not(:disabled) {
+            background: #1565c0;
+            transform: scale(1.05);
+        }
+        
+        #send-button:disabled {
+            background: #e0e0e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .typing-indicator {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 16px 20px;
+            background: white;
+            border-radius: 24px 24px 24px 8px;
+            max-width: 80%;
+            align-self: flex-start;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #bdbdbd;
+            animation: typing 1.4s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes typing {
+            0%, 80%, 100% {
+                transform: scale(0.8);
+                opacity: 0.5;
+            }
+            40% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        .welcome-message {
+            align-self: flex-start;
+            background: white;
+            padding: 20px;
+            border-radius: 24px 24px 24px 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            max-width: 80%;
+            color: #666;
+            font-size: 15px;
+            line-height: 1.5;
+        }
+        
+        #footer {
+            text-align: center;
+            padding: 16px;
+            color: #666;
+            font-size: 14px;
+            border-top: 1px solid #e0e0e0;
+            background: white;
+        }
+        
+        #footer a {
+            color: #1976d2;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        #footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .heart {
+            display: none;
+        }
+        
+        #independent-attach-button {
+            padding: 0;
+            background: none;
+            border-radius: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            color: #555;
+            font-size: 24px;
+            transition: color 0.2s ease;
+            flex-shrink: 0;
+        }
+        
+        #independent-attach-button:hover {
+            color: #1976d2;
+        }
+        
+        #upload-status {
+            margin-left: 5px;
+            margin-right: 10px;
+            font-size: 12px;
+            color: #555;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 120px;
+            flex-shrink: 0;
+        }
+        
+        @media (max-width: 768px) {
+            #chat-container {
+                padding: 10px;
+            }
+            
+            #chat-messages {
+                padding: 10px;
+            }
+            
+            .message {
+                max-width: 90%;
+            }
+            
+            .welcome-message {
+                max-width: 90%;
+            }
+            
+            #user-input-container {
+                gap: 6px;
+                padding: 8px;
+            }
+            
+            #independent-attach-button {
+                font-size: 20px;
+                width: 20px;
+                height: 20px;
+            }
+            
+            #upload-status {
+                font-size: 11px;
+                max-width: 80px;
+                margin-left: 4px;
+                margin-right: 8px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            #chat-container {
+                padding: 5px;
+            }
+            
+            #chat-messages {
+                padding: 5px;
+            }
+            
+            .message {
+                max-width: 95%;
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+            
+            .welcome-message {
+                max-width: 95%;
+                padding: 10px 14px;
+                font-size: 14px;
+            }
+            
+            #user-input-container {
+                gap: 4px;
+                padding: 6px;
+            }
+            
+            #independent-attach-button {
+                font-size: 18px;
+                width: 18px;
+                height: 18px;
+            }
+            
+            #upload-status {
+                font-size: 10px;
+                max-width: 60px;
+                margin-left: 3px;
+                margin-right: 6px;
+            }
+            
+            #send-button {
+                width: 32px;
+                height: 32px;
+                font-size: 14px;
+                padding: 6px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Mover #upload-area dentro de #chat-container, antes de #user-input-container -->
+    
+
+    <div id="chat-container">
+        <div id="chat-messages">
+            <div class="welcome-message">
+                ¡Hola! En qué puedo ayudarte hoy? Qué tipo de herramienta digital estás buscando?
+            </div>
+        </div>
+
+        <!-- #upload-area se moverá aquí -->
+
+        <div id="user-input-container">
+            <!-- Asegurarse de que los elementos de subida no estén aquí -->
+
+            <input type="text" id="user-input" placeholder="Escribe un mensaje..." maxlength="500">
+            <button id="send-button">▶</button>
+        </div>
+    </div>
+
+    <!-- Asegurarse de que los elementos de subida no queden fuera del chat container -->
+     <div id="upload-area">
+         <input type="file" id="independent-file-input" style="display: none;">
+         <label for="independent-file-input" id="independent-attach-button" title="Subir archivo">📂</label>
+         <span id="upload-status"></span> <!-- Para mostrar el estado de la subida -->
+     </div>
+
+    <div id="footer">
+        © 2025 IARVIX. Construido por 
+        <a href="https://www.linkedin.com/in/automatizacion-para-empresas/" target="_blank">Jose Andonaire</a> y 
+        <a href="https://www.linkedin.com/in/javier-jean-pierre-cabrera-leon-75296a194/" target="_blank">Javier Cabrera</a>
+    </div>
+
+    <script>
+        const sendButton = document.getElementById('send-button');
+        const userInput = document.getElementById('user-input');
+        const chatMessages = document.getElementById('chat-messages');
+        
+        const originalWebhookUrl = 'https://primary-production-9a03b.up.railway.app/webhook/4bc2b757-b04d-490f-9a7c-96951abc734f';
+        const fileWebhookUrl = 'https://primary-production-9a03b.up.railway.app/webhook/3d9cfec1-84ac-442d-b0a7-5c5652b51206';
+
+        // Nuevos elementos para subir archivo independiente
+        const independentFileInput = document.getElementById('independent-file-input');
+        const independentAttachButton = document.getElementById('independent-attach-button');
+        const uploadStatus = document.getElementById('upload-status');
+
+        let isProcessing = false;
+        let isUploading = false;
+
+        // Event listeners
+        sendButton.addEventListener('click', sendMessage);
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        userInput.addEventListener('input', function() {
+            // Habilitar el botón de enviar solo si hay texto
+            if (this.value.trim() && !isProcessing) {
+                sendButton.disabled = false;
+            } else {
+                sendButton.disabled = true;
+            }
+        });
+
+        // Event listener para el input de archivo independiente
+        independentFileInput.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file && !isUploading) {
+                uploadFile(file);
+            } else if (file) {
+                 // Si ya hay una subida en curso, informar al usuario
+                 uploadStatus.textContent = 'Ya hay una subida en curso.';
+            } else {
+                 // Si se cancela la selección de archivo
+                 uploadStatus.textContent = '';
+            }
+             // Limpiar el input de archivo después de seleccionar (incluso si ya había una subida)
+             this.value = '';
+        });
+
+        function sendMessage() {
+            const question = userInput.value.trim();
+            
+            console.log('sendMessage called with:', question);
+            console.log('isProcessing:', isProcessing);
+            
+            // Solo enviar si hay texto y no se está procesando
+            if (!question || isProcessing) {
+                console.log('Message blocked - empty or processing');
+                return;
+            }
+            
+            console.log('Proceeding with message send...');
+            
+            // Clear welcome message if it exists
+            const welcomeMsg = chatMessages.querySelector('.welcome-message');
+            if (welcomeMsg) {
+                welcomeMsg.remove();
+            }
+            
+            // Add user message
+            addMessage(question, 'user');
+            
+            // Clear input and disable controls
+            userInput.value = '';
+            userInput.disabled = true;  // Bloquear la barra de texto
+            sendButton.disabled = true;
+            isProcessing = true;
+            
+            console.log('Controls disabled, showing typing indicator...');
+            
+            // Show typing indicator
+            showTypingIndicator();
+            
+            // Send to webhook (chat)
+            console.log('Calling sendToWebhook (chat) with URL:', originalWebhookUrl);
+            sendToWebhook(originalWebhookUrl, JSON.stringify({ text: question }), { 'Content-Type': 'application/json' });
+        }
+
+        function linkifyText(text) {
+            // First convert \n to <br> for line breaks (handle both literal \n and actual newlines)
+            const textWithBreaks = text.replace(/\\n/g, '<br>').replace(/\n/g, '<br>');
+            // Then convert URLs to links
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            return textWithBreaks.replace(urlRegex, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+        }
+
+        function addMessage(text, type, expertName = '') {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message', type);
+            
+            if (type === 'user') {
+                // For user messages, also linkify URLs
+                messageElement.innerHTML = linkifyText(text);
+            } else {
+                if (expertName) {
+                    const nameElement = document.createElement('div');
+                    nameElement.classList.add('expert-name');
+                    nameElement.textContent = expertName;
+                    messageElement.appendChild(nameElement);
+                }
+                
+                const contentElement = document.createElement('div');
+                // Convert URLs to clickable links
+                contentElement.innerHTML = linkifyText(text);
+                messageElement.appendChild(contentElement);
+            }
+            
+            chatMessages.appendChild(messageElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const typingElement = document.createElement('div');
+            typingElement.classList.add('typing-indicator');
+            typingElement.id = 'typing-indicator';
+            
+            for (let i = 0; i < 3; i++) {
+                const dot = document.createElement('div');
+                dot.classList.add('typing-dot');
+                typingElement.appendChild(dot);
+            }
+            
+            chatMessages.appendChild(typingElement);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        function sendToWebhook(url, body, headers = {}) {
+            console.log('sendToWebhook called with URL:', url);
+            console.log('Request body type:', body instanceof FormData ? 'FormData' : typeof body);
+            console.log('Request headers:', headers); // Loguear headers
+            console.log('Iniciando solicitud fetch...'); // Log antes de fetch
+            
+            fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: body
+            })
+            .then(response => {
+                console.log('Respuesta recibida.'); // Log al recibir respuesta
+                console.log('Response status:', response.status);
+                console.log('Response ok:', response.ok);
+                // console.log('Response headers:', response.headers); // Headers pueden ser ruidosos
+                
+                if (!response.ok) {
+                    // Intentar leer el cuerpo del error si no es un error 404/500 genérico
+                    return response.text().then(text => {
+                         console.error('Error response body:', text);
+                         throw new Error(`HTTP error! status: ${response.status}, body: ${text}`);
+                    });
+                }
+                console.log('Respuesta HTTP exitosa (status 2xx).'); // Log después de verificar response.ok
+                console.log('Archivo enviado con éxito.'); // Log de éxito
+                 return response.text();
+             })
+             .then(data => {
+                 console.log('Response data received:', data);
+                 removeTypingIndicator();
+                 
+                 try {
+                     // Try to parse as JSON first
+                     const jsonResponse = JSON.parse(data);
+                     console.log('Parsed as JSON:', jsonResponse);
+                     
+                     // Check for different possible response formats
+                     let messageToShow = '';
+                     
+                     if (jsonResponse.output) {
+                         messageToShow = jsonResponse.output;
+                     } else if (jsonResponse.message) {
+                         messageToShow = jsonResponse.message;
+                     } else if (jsonResponse.text) {
+                         messageToShow = jsonResponse.text;
+                     } else if (typeof jsonResponse === 'string') {
+                         messageToShow = jsonResponse;
+                     } else {
+                         // If it's an object but no expected field, stringify it
+                         messageToShow = JSON.stringify(jsonResponse);
+                     }
+                     
+                     addMessage(messageToShow, 'assistant', 'KnowHow IA');
+                     
+                 } catch (e) {
+                     console.log('Not JSON, trying to extract from string. Error:', e);
+                     
+                     // Try to extract JSON from string if it contains {"output":...}
+                     const outputMatch = data.match(/"output"\s*:\s*"([^"]+)"/);
+                     if (outputMatch) {
+                         addMessage(outputMatch[1], 'assistant', 'KnowHow IA');
+                     } else if (data.includes('<div class="message"') || data.includes('expert')) {
+                         console.log('Parsing as HTML response');
+                         parseHTMLResponse(data);
+                     } else {
+                         console.log('Treating as plain text');
+                         // Plain text response
+                         addMessage(data, 'assistant', 'KnowHow IA');
+                     }
+                 }
+             })
+             .catch((error) => {
+                 console.error('Fetch error:', error);
+                 console.error('Error details:', error.message);
+                 removeTypingIndicator();
+                 addMessage("Lo siento, hubo un error al procesar tu consulta. Error: " + error.message, 'assistant', 'Sistema');
+             })
+             .finally(() => {
+                 console.log('Request completed, re-enabling controls');
+                 isProcessing = false;
+                 userInput.disabled = false;  // Habilitar la barra de texto nuevamente
+                 if (userInput.value.trim()) {
+                     sendButton.disabled = false;
+                 } else {
+                     sendButton.disabled = true;
+                 }
+             });
+        }
+
+        function parseHTMLResponse(htmlData) {
+            try {
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlData, 'text/html');
+                const messages = doc.querySelectorAll('.message');
+                
+                if (messages.length > 0) {
+                    messages.forEach((msg, index) => {
+                        setTimeout(() => {
+                            const expertNameEl = msg.querySelector('.expert-name');
+                            const expertName = expertNameEl ? expertNameEl.textContent : 'Experto';
+                            
+                            const contentEl = msg.querySelector('div:not(.expert-name)') || msg;
+                            const content = contentEl.textContent || contentEl.innerText;
+                            
+                            if (content.trim()) {
+                                addMessage(content.trim(), 'assistant', expertName);
+                            }
+                        }, index * 1000);
+                    });
+                } else {
+                    // Fallback: display the entire response
+                    const textContent = doc.body.textContent || doc.body.innerText || htmlData;
+                    if (textContent.trim()) {
+                        addMessage(textContent.trim(), 'assistant', 'KnowHow IA');
+                    }
+                }
+            } catch (error) {
+                console.error('Error parsing HTML response:', error);
+                addMessage(htmlData, 'assistant', 'KnowHow IA');
+            }
+        }
+
+        // Nueva función para subir archivo independientemente
+        function uploadFile(file) {
+             console.log('uploadFile called with file:', file.name);
+             isUploading = true;
+             uploadStatus.textContent = `Subiendo ${file.name}...`;
+
+             const formData = new FormData();
+             formData.append('file', file);
+
+             console.log('Sending file to webhook:', fileWebhookUrl);
+
+             fetch(fileWebhookUrl, {
+                 method: 'POST',
+                 body: formData // FormData no necesita Content-Type header
+             })
+             .then(response => {
+                 console.log('File upload response received.');
+                 console.log('File upload Response status:', response.status);
+                 console.log('File upload Response ok:', response.ok);
+                 
+                 if (!response.ok) {
+                     return response.text().then(text => {
+                          console.error('File upload Error response body:', text);
+                          uploadStatus.textContent = `Error subiendo ${file.name}: ${response.status}`; // Mostrar error
+                          throw new Error(`File upload HTTP error! status: ${response.status}, body: ${text}`);
+                     });
+                 }
+                 console.log('File upload HTTP successful (status 2xx).');
+                 uploadStatus.textContent = `${file.name} subido con éxito.`; // Mensaje de éxito
+                 return response.text();
+             })
+             .then(data => {
+                 console.log('File upload response data:', data);
+                 // Puedes hacer algo con la respuesta del webhook si es necesario
+             })
+             .catch((error) => {
+                 console.error('File upload Fetch error:', error);
+                 uploadStatus.textContent = `Error de red al subir ${file.name}.`; // Mostrar error de red
+             })
+             .finally(() => {
+                 console.log('File upload process finished.');
+                 isUploading = false;
+                  // El input de archivo ya se limpia en el change listener
+             });
+        }
+
+        // Initialize
+        sendButton.disabled = true;
+    </script>
+</body>
+</html>
