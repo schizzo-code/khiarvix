@@ -395,6 +395,11 @@
                 <input type="file" id="independent-file-input" style="display: none;">
                 <label for="independent-file-input" id="independent-attach-button" title="Subir archivo">+</label>
                 <span id="upload-status">Haz clic en + para subir un archivo</span>
+                <div id="upload-typing-indicator" style="display: none;">
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                    <div class="typing-dot"></div>
+                </div>
             </div>
 
             <div id="user-input-container">
@@ -421,6 +426,7 @@
         const independentFileInput = document.getElementById('independent-file-input');
         const independentAttachButton = document.getElementById('independent-attach-button');
         const uploadStatus = document.getElementById('upload-status');
+        const uploadTypingIndicator = document.getElementById('upload-typing-indicator');
 
         let uploadedFileCount = 0;
         let isProcessing = false;
@@ -656,9 +662,18 @@
             }
         }
 
+        function showUploadTypingIndicator() {
+            uploadTypingIndicator.style.display = 'flex';
+        }
+
+        function removeUploadTypingIndicator() {
+            uploadTypingIndicator.style.display = 'none';
+        }
+
         function uploadFile(file) {
              console.log('uploadFile called with file:', file.name);
              isUploading = true;
+             showUploadTypingIndicator();
              uploadStatus.textContent = `Subiendo ${file.name}...`;
              uploadStatus.className = '';
 
@@ -679,6 +694,7 @@
                  if (!response.ok) {
                      const errorMessage = `✗ Error al subir ${file.name} (Servidor respondió: ${response.status}).`;
                      addMessage(errorMessage, 'assistant', 'Sistema de Archivos');
+                     removeUploadTypingIndicator();
                      uploadStatus.textContent = `✗ Error al subir ${file.name}. Haz clic en + para reintentar.`;
                      uploadStatus.className = 'error';
                      return response.text().then(text => {
@@ -690,6 +706,7 @@
                  console.log('File upload HTTP successful (status 2xx).');
                  
                  addMessage(`✓ ${file.name} subido correctamente.`, 'assistant', 'Sistema de Archivos');
+                 removeUploadTypingIndicator();
                  
                  uploadedFileCount++;
                  uploadStatus.textContent = `✓ ${uploadedFileCount} archivo(s) subido(s). Haz clic en + para añadir más.`;
@@ -719,6 +736,8 @@
                  console.error('File upload Fetch error:', error);
                  const connErrorMessage = `✗ Error de conexión al subir ${file.name}.`;
                  addMessage(connErrorMessage, 'assistant', 'Sistema de Archivos');
+                 
+                 removeUploadTypingIndicator();
                  
                  if (uploadStatus.className !== 'error' || !uploadStatus.textContent.startsWith('✗ Error al subir')) {
                     uploadStatus.textContent = `✗ Error de conexión. Haz clic en + para reintentar.`;
