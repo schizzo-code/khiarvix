@@ -422,6 +422,7 @@
         const independentAttachButton = document.getElementById('independent-attach-button');
         const uploadStatus = document.getElementById('upload-status');
 
+        let uploadedFileCount = 0;
         let isProcessing = false;
         let isUploading = false;
 
@@ -676,25 +677,53 @@
                  console.log('File upload Response ok:', response.ok);
                  
                  if (!response.ok) {
+                     const errorMessage = `✗ Error al subir ${file.name} (Servidor respondió: ${response.status}).`;
+                     addMessage(errorMessage, 'assistant', 'Sistema de Archivos');
+                     uploadStatus.textContent = `✗ Error al subir ${file.name}. Haz clic en + para reintentar.`;
+                     uploadStatus.className = 'error';
                      return response.text().then(text => {
                           console.error('File upload Error response body:', text);
-                          uploadStatus.textContent = `Error subiendo ${file.name}`;
-                          uploadStatus.className = 'error';
                           throw new Error(`File upload HTTP error! status: ${response.status}, body: ${text}`);
                      });
                  }
+                 
                  console.log('File upload HTTP successful (status 2xx).');
-                 uploadStatus.textContent = `✓ ${file.name} subido correctamente`;
-                 uploadStatus.className = 'success';
+                 
+                 addMessage(`✓ ${file.name} subido correctamente.`, 'assistant', 'Sistema de Archivos');
+                 
+                 uploadedFileCount++;
+                 uploadStatus.textContent = `✓ ${uploadedFileCount} archivo(s) subido(s). Haz clic en + para añadir más.`;
+                 uploadStatus.className = 'success'; 
+                 
                  return response.text();
              })
              .then(data => {
-                 console.log('File upload response data:', data);
+                 console.log('File upload response data (if any):', data);
+                 // Intentar parsear la respuesta y mostrarla si es relevante
+                 try {
+                     const jsonResponse = JSON.parse(data);
+                     if (jsonResponse && jsonResponse.output) {
+                         addMessage(jsonResponse.output, 'assistant', 'Sistema de Archivos');
+                     } else if (jsonResponse && jsonResponse.message) { // Fallback por si el campo es 'message'
+                         addMessage(jsonResponse.message, 'assistant', 'Sistema de Archivos');
+                     }
+                     // Si no es un JSON esperado o no tiene los campos, no se muestra nada adicional desde aquí,
+                     // el mensaje de "subido correctamente" ya se mostró antes.
+                 } catch (e) {
+                     console.log('File upload response data was not valid JSON or did not contain expected fields, or was empty. Error:', e);
+                     // Opcionalmente, si la respuesta 'data' es un string simple y no vacío, se podría mostrar.
+                     // Por ahora, solo se loguea el error de parseo.
+                 }
              })
              .catch((error) => {
                  console.error('File upload Fetch error:', error);
-                 uploadStatus.textContent = `Error de conexión al subir ${file.name}`;
-                 uploadStatus.className = 'error';
+                 const connErrorMessage = `✗ Error de conexión al subir ${file.name}.`;
+                 addMessage(connErrorMessage, 'assistant', 'Sistema de Archivos');
+                 
+                 if (uploadStatus.className !== 'error' || !uploadStatus.textContent.startsWith('✗ Error al subir')) {
+                    uploadStatus.textContent = `✗ Error de conexión. Haz clic en + para reintentar.`;
+                    uploadStatus.className = 'error';
+                 }
              })
              .finally(() => {
                  console.log('File upload process finished.');
