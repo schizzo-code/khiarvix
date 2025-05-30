@@ -225,6 +225,67 @@
             transform: none;
         }
         
+        #voice-button {
+            padding: 10px;
+            background: #9e9e9e;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        
+        #voice-button:hover:not(:disabled) {
+            background: #757575;
+            transform: scale(1.05);
+        }
+        
+        #voice-button.recording {
+            background: #f44336;
+            animation: pulse 1.5s infinite;
+        }
+        
+        #voice-button.processing {
+            background: #1976d2;
+        }
+        
+        #voice-button:disabled {
+            background: #e0e0e0;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0.7);
+            }
+            70% {
+                transform: scale(1.05);
+                box-shadow: 0 0 0 8px rgba(244, 67, 54, 0);
+            }
+            100% {
+                transform: scale(1);
+                box-shadow: 0 0 0 0 rgba(244, 67, 54, 0);
+            }
+        }
+        
+        #recording-timer {
+            font-size: 12px;
+            color: #f44336;
+            font-weight: 600;
+            margin-right: 8px;
+            display: none;
+            white-space: nowrap;
+        }
+        
         .typing-indicator {
             display: flex;
             align-items: center;
@@ -379,6 +440,17 @@
                 font-size: 14px;
                 padding: 6px;
             }
+            
+            #voice-button {
+                width: 32px;
+                height: 32px;
+                font-size: 14px;
+                padding: 6px;
+            }
+            
+            #recording-timer {
+                font-size: 10px;
+            }
         }
     </style>
 </head>
@@ -404,6 +476,8 @@
 
             <div id="user-input-container">
                 <input type="text" id="user-input" placeholder="Escribe un mensaje..." maxlength="500">
+                <span id="recording-timer">0:00</span>
+                <button id="voice-button" title="Grabar mensaje de voz"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="9" y="2" width="6" height="11" rx="3"></rect><path d="M5 10v3a7 7 0 0014 0v-3"></path><path d="M12 19v3"></path><line x1="8" y1="22" x2="16" y2="22"></line></svg></button>
                 <button id="send-button">▶</button>
             </div>
         </div>
@@ -419,6 +493,8 @@
         const sendButton = document.getElementById('send-button');
         const userInput = document.getElementById('user-input');
         const chatMessages = document.getElementById('chat-messages');
+        const voiceButton = document.getElementById('voice-button');
+        const recordingTimerDisplay = document.getElementById('recording-timer');
         
         const originalWebhookUrl = 'https://primary-production-9a03b.up.railway.app/webhook/4bc2b757-b04d-490f-9a7c-96951abc734f';
         const fileWebhookUrl = 'https://primary-production-9a03b.up.railway.app/webhook/3d9cfec1-84ac-442d-b0a7-5c5652b51206';
@@ -431,6 +507,15 @@
         let uploadedFileCount = 0;
         let isProcessing = false;
         let isUploading = false;
+
+        // Variables de grabación de voz
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let recordingTimer = null;
+        let recordingStartTime = null;
+        let isRecording = false;
+        let recordingDuration = 0;
+        const MAX_RECORDING_TIME = 60; // 60 segundos máximo
 
         // Event listeners
         sendButton.addEventListener('click', sendMessage);
@@ -446,6 +531,14 @@
                 sendButton.disabled = false;
             } else {
                 sendButton.disabled = true;
+            }
+        });
+
+        voiceButton.addEventListener('click', function() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
             }
         });
 
@@ -748,6 +841,238 @@
                  console.log('File upload process finished.');
                  isUploading = false;
              });
+        }
+
+        // Funciones de grabación de voz
+        async function startRecording() {
+            if (isProcessing || isUploading || isRecording) {
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        sampleRate: 44100
+                    } 
+                });
+
+                // Detectar el tipo de audio soportado
+                let mimeType = 'audio/webm';
+                if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+                    mimeType = 'audio/webm;codecs=opus';
+                } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+                    mimeType = 'audio/mp4';
+                } else if (MediaRecorder.isTypeSupported('audio/wav')) {
+                    mimeType = 'audio/wav';
+                }
+
+                mediaRecorder = new MediaRecorder(stream, { mimeType });
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: mimeType });
+                    uploadAudio(audioBlob, mimeType);
+                    
+                    // Limpiar stream
+                    stream.getTracks().forEach(track => track.stop());
+                };
+
+                // Configurar UI
+                isRecording = true;
+                recordingStartTime = Date.now();
+                recordingDuration = 0;
+                
+                voiceButton.className = 'recording';
+                voiceButton.title = 'Detener grabación';
+                recordingTimerDisplay.style.display = 'block';
+                
+                // Deshabilitar otros controles
+                userInput.disabled = true;
+                sendButton.disabled = true;
+                independentAttachButton.style.pointerEvents = 'none';
+                independentAttachButton.style.opacity = '0.5';
+
+                // Iniciar grabación
+                mediaRecorder.start(100); // Recopilar datos cada 100ms
+                
+                // Iniciar timer
+                updateRecordingTimer();
+                recordingTimer = setInterval(updateRecordingTimer, 1000);
+
+                console.log('Grabación iniciada');
+
+            } catch (error) {
+                console.error('Error al acceder al micrófono:', error);
+                let errorMessage = 'Error al acceder al micrófono.';
+                
+                if (error.name === 'NotAllowedError') {
+                    errorMessage = 'Permiso de micrófono denegado. Por favor, permite el acceso al micrófono.';
+                } else if (error.name === 'NotFoundError') {
+                    errorMessage = 'No se encontró micrófono. Verifica que tienes un micrófono conectado.';
+                } else if (error.name === 'NotSupportedError') {
+                    errorMessage = 'Grabación de audio no soportada en este navegador.';
+                }
+                
+                addMessage(errorMessage, 'assistant', 'Sistema de Audio');
+                resetRecordingState();
+            }
+        }
+
+        function stopRecording() {
+            if (!isRecording || !mediaRecorder) {
+                return;
+            }
+
+            console.log('Deteniendo grabación...');
+            
+            // Detener grabación
+            mediaRecorder.stop();
+            
+            // Limpiar timer
+            clearInterval(recordingTimer);
+            recordingTimer = null;
+            
+            // Actualizar UI
+            voiceButton.className = 'processing';
+            voiceButton.title = 'Procesando audio...';
+            voiceButton.disabled = true;
+            recordingTimerDisplay.style.display = 'none';
+            
+            isRecording = false;
+        }
+
+        function updateRecordingTimer() {
+            if (!isRecording) return;
+            
+            recordingDuration = Math.floor((Date.now() - recordingStartTime) / 1000);
+            
+            const minutes = Math.floor(recordingDuration / 60);
+            const seconds = recordingDuration % 60;
+            recordingTimerDisplay.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Auto-stop después del tiempo máximo
+            if (recordingDuration >= MAX_RECORDING_TIME) {
+                stopRecording();
+                addMessage(`Grabación detenida automáticamente después de ${MAX_RECORDING_TIME} segundos.`, 'assistant', 'Sistema de Audio');
+            }
+        }
+
+        function uploadAudio(audioBlob, mimeType) {
+            console.log('uploadAudio called with blob size:', audioBlob.size);
+            
+            isUploading = true;
+            showUploadTypingIndicator();
+            
+            // Generar nombre de archivo
+            const timestamp = Date.now();
+            const extension = mimeType.includes('webm') ? 'webm' : 
+                             mimeType.includes('mp4') ? 'mp4' : 'wav';
+            const fileName = `audio_${timestamp}.${extension}`;
+            
+            uploadStatus.textContent = 'Procesando audio...';
+            uploadStatus.className = '';
+
+            const formData = new FormData();
+            formData.append('file', audioBlob, fileName);
+
+            console.log('Sending audio to webhook:', originalWebhookUrl);
+
+            fetch(originalWebhookUrl, {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                console.log('Audio upload response received.');
+                console.log('Audio upload Response status:', response.status);
+                console.log('Audio upload Response ok:', response.ok);
+                
+                if (!response.ok) {
+                    const errorMessage = `✗ Error al enviar audio (Servidor respondió: ${response.status}).`;
+                    addMessage(errorMessage, 'assistant', 'Sistema de Audio');
+                    removeUploadTypingIndicator();
+                    uploadStatus.textContent = `✗ Error al enviar audio.`;
+                    uploadStatus.className = 'error';
+                    return response.text().then(text => {
+                         console.error('Audio upload Error response body:', text);
+                         throw new Error(`Audio upload HTTP error! status: ${response.status}, body: ${text}`);
+                    });
+                }
+                
+                console.log('Audio upload HTTP successful (status 2xx).');
+                
+                addMessage(`✓ Audio enviado correctamente (${recordingDuration}s).`, 'assistant', 'Sistema de Audio');
+                removeUploadTypingIndicator();
+                
+                uploadStatus.textContent = `✓ Audio enviado. Duración: ${recordingDuration}s`;
+                uploadStatus.className = 'success'; 
+                
+                return response.text();
+            })
+            .then(data => {
+                console.log('Audio upload response data (if any):', data);
+                
+                try {
+                    const jsonResponse = JSON.parse(data);
+                    if (jsonResponse && jsonResponse.output) {
+                        addMessage(jsonResponse.output, 'assistant', 'Sistema de Audio');
+                    } else if (jsonResponse && jsonResponse.message) {
+                        addMessage(jsonResponse.message, 'assistant', 'Sistema de Audio');
+                    }
+                } catch (e) {
+                    console.log('Audio upload response data was not valid JSON or did not contain expected fields. Error:', e);
+                }
+            })
+            .catch((error) => {
+                console.error('Audio upload Fetch error:', error);
+                const connErrorMessage = `✗ Error de conexión al enviar audio.`;
+                addMessage(connErrorMessage, 'assistant', 'Sistema de Audio');
+                
+                removeUploadTypingIndicator();
+                
+                uploadStatus.textContent = `✗ Error de conexión.`;
+                uploadStatus.className = 'error';
+            })
+            .finally(() => {
+                console.log('Audio upload process finished.');
+                resetRecordingState();
+            });
+        }
+
+        function resetRecordingState() {
+            isRecording = false;
+            isUploading = false;
+            recordingDuration = 0;
+            recordingStartTime = null;
+            
+            // Limpiar timer
+            if (recordingTimer) {
+                clearInterval(recordingTimer);
+                recordingTimer = null;
+            }
+            
+            // Restablecer UI
+            voiceButton.className = '';
+            voiceButton.title = 'Grabar mensaje de voz';
+            voiceButton.disabled = false;
+            recordingTimerDisplay.style.display = 'none';
+            recordingTimerDisplay.textContent = '0:00';
+            
+            // Rehabilitar otros controles
+            userInput.disabled = false;
+            independentAttachButton.style.pointerEvents = '';
+            independentAttachButton.style.opacity = '';
+            
+            if (userInput.value.trim() && !isProcessing) {
+                sendButton.disabled = false;
+            }
         }
 
         // Initialize
